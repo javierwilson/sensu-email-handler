@@ -30,10 +30,11 @@ var tcRcpts = []struct {
 }
 
 func TestNewRcpts(t *testing.T) {
+	event := corev2.FixtureEvent("foo", "bar")
 	for _, tc := range tcRcpts {
 		t.Run(tc.name, func(t *testing.T) {
 
-			r := newRcpts(tc.to)
+			r := newRcpts(tc.to, event)
 			assert.Equal(t, tc.expTo, fmt.Sprintf("To: %s", r), "receipients should be equal")
 		})
 	}
