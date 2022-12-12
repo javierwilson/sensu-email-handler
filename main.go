@@ -298,16 +298,12 @@ func sendEmail(event *corev2.Event) error {
 		return bodyErr
 	}
 
-	recipients := newRcpts(config.ToEmail)
-	recipientsRes, recipientsErr := resolveTemplate(recipients.String(), event, ContentPlain)
-	if recipientsErr != nil {
-		return recipientsErr
-	}
+	recipients := newRcpts(config.ToEmail, event)
 
 	t := time.Now()
 
 	msg := []byte("From: " + config.FromHeader + "\r\n" +
-		"To: " + recipientsRes + "\r\n" +
+		"To: " + recipients.String() + "\r\n" +
 		"Subject: " + subject + "\r\n" +
 		"Date: " + t.Format(time.RFC1123Z) + "\r\n" +
 		"Content-Type: " + contentType + "\r\n" +
@@ -415,28 +411,37 @@ func resolveTemplate(templateValue string, event *corev2.Event, contentType stri
 	return resolved.String(), nil
 }
 
+func resolveTemplateEmail(email string, event *corev2.Event) string {
+	recipients, recipientsErr := resolveTemplate(email, event, ContentPlain)
+	if recipientsErr != nil {
+		fmt.Print(recipientsErr)
+	}
+	return recipients
+}
+
 //newRcpts trims "spaces" and checks each toEmails for commas.
 // Any additional rcpts via commas appends to the end.
-func newRcpts(toEmails []string) rcpts {
+func newRcpts(toEmails []string, event *corev2.Event) rcpts {
 	tos := make([]string, len(toEmails))
 	ntos := []string{}
 
 	for i, t := range toEmails {
 		ts := strings.Split(t, ",")
-		tos[i] = strings.TrimSpace(ts[0])
+		tos[i] = resolveTemplateEmail(strings.TrimSpace(ts[0]), event)
 		if len(ts) == 1 {
 			continue
 		}
 
 		// first 1 aleady in slice
 		for _, tt := range ts[1:] {
-			ntos = append(ntos, strings.TrimSpace(tt))
+			ntos = append(ntos, resolveTemplateEmail(strings.TrimSpace(tt), event))
 		}
 	}
 
 	if len(ntos) > 0 {
-		return rcpts(append(tos, ntos...))
+		tos = rcpts(append(tos, ntos...))
 	}
+
 	return rcpts(tos)
 }
 
